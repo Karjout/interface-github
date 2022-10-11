@@ -97,13 +97,21 @@ class GithubTeam(models.Model):
 
     @api.depends("partner_ids")
     def _compute_partner_qty(self):
-        for team in self:
-            team.partner_qty = len(team.partner_ids)
+        data = self.env["github.team.partner"].read_group(
+            [("team_id", "in", self.ids)], ["team_id"], ["team_id"]
+        )
+        mapping = {data["team_id"][0]: data["team_id_count"] for data in data}
+        for item in self:
+            item.partner_qty = mapping.get(item.id, 0)
 
     @api.depends("repository_ids")
     def _compute_repository_qty(self):
-        for team in self:
-            team.repository_qty = len(team.repository_ids)
+        data = self.env["github.team.repository"].read_group(
+            [("team_id", "in", self.ids)], ["team_id"], ["team_id"]
+        )
+        mapping = {data["team_id"][0]: data["team_id_count"] for data in data}
+        for item in self:
+            item.repository_qty = mapping.get(item.id, 0)
 
     # Overloadable Section
     @api.model
@@ -194,10 +202,8 @@ class GithubTeam(models.Model):
 
     def action_github_team_partner_from_team(self):
         self.ensure_one()
-        action = (
-            self.sudo()
-            .env.ref("github_connector.action_github_team_partner_from_team")
-            .read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_team_partner_from_team"
         )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)
@@ -206,10 +212,8 @@ class GithubTeam(models.Model):
 
     def action_github_team_repository_from_team(self):
         self.ensure_one()
-        action = (
-            self.sudo()
-            .env.ref("github_connector.action_github_team_repository_from_team")
-            .read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_team_repository_from_team"
         )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)

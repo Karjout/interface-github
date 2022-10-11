@@ -75,8 +75,12 @@ class ResPartner(models.Model):
 
     @api.depends("github_team_partner_ids")
     def _compute_github_team_qty(self):
-        for partner in self:
-            partner.github_team_qty = len(partner.github_team_partner_ids)
+        data = self.env["github.team.partner"].read_group(
+            [("partner_id", "in", self.ids)], ["partner_id"], ["partner_id"]
+        )
+        mapping = {data["partner_id"][0]: data["partner_id_count"] for data in data}
+        for item in self:
+            item.github_team_qty = mapping.get(item.id, 0)
 
     # Custom Section
     @api.model
@@ -105,8 +109,8 @@ class ResPartner(models.Model):
 
     def action_github_organization(self):
         self.ensure_one()
-        action = (
-            self.sudo().env.ref("github_connector.action_github_organization").read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_organization"
         )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)
@@ -115,10 +119,8 @@ class ResPartner(models.Model):
 
     def action_github_team_partner_from_partner(self):
         self.ensure_one()
-        action = (
-            self.sudo()
-            .env.ref("github_connector.action_github_team_partner_from_partner")
-            .read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_team_partner_from_partner"
         )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)

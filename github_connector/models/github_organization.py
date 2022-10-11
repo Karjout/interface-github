@@ -135,20 +135,42 @@ class GithubOrganization(models.Model):
 
     @api.depends("repository_ids.organization_id")
     def _compute_repository_qty(self):
-        for organization in self:
-            organization.repository_qty = len(organization.repository_ids)
+        data = self.env["github.repository"].read_group(
+            [("organization_id", "in", self.ids)],
+            ["organization_id"],
+            ["organization_id"],
+        )
+        mapping = {
+            data["organization_id"][0]: data["organization_id_count"] for data in data
+        }
+        for item in self:
+            item.repository_qty = mapping.get(item.id, 0)
 
     @api.depends("team_ids.organization_id")
     def _compute_team_qty(self):
-        for organization in self:
-            organization.team_qty = len(organization.team_ids)
+        data = self.env["github.team"].read_group(
+            [("organization_id", "in", self.ids)],
+            ["organization_id"],
+            ["organization_id"],
+        )
+        mapping = {
+            data["organization_id"][0]: data["organization_id_count"] for data in data
+        }
+        for item in self:
+            item.team_qty = mapping.get(item.id, 0)
 
     @api.depends("organization_serie_ids.organization_id")
     def _compute_organization_serie_qty(self):
-        for organization in self:
-            organization.organization_serie_qty = len(
-                organization.organization_serie_ids
-            )
+        data = self.env["github.organization.serie"].read_group(
+            [("organization_id", "in", self.ids)],
+            ["organization_id"],
+            ["organization_id"],
+        )
+        mapping = {
+            data["organization_id"][0]: data["organization_id_count"] for data in data
+        }
+        for item in self:
+            item.organization_serie_qty = mapping.get(item.id, 0)
 
     def find_related_github_object(self, obj_id=None):
         """Query Github API to find the related object"""
@@ -202,8 +224,8 @@ class GithubOrganization(models.Model):
 
     def action_github_repository(self):
         self.ensure_one()
-        action = (
-            self.sudo().env.ref("github_connector.action_github_repository").read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_repository"
         )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)
@@ -212,7 +234,9 @@ class GithubOrganization(models.Model):
 
     def action_github_team(self):
         self.ensure_one()
-        action = self.sudo().env.ref("github_connector.action_github_team").read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_github_team"
+        )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)
         action["context"]["search_default_organization_id"] = self.id
@@ -220,7 +244,9 @@ class GithubOrganization(models.Model):
 
     def action_res_partner(self):
         self.ensure_one()
-        action = self.sudo().env.ref("github_connector.action_res_partner").read()[0]
+        action = self.env["ir.actions.act_window"]._for_xml_id(
+            "github_connector.action_res_partner"
+        )
         action["context"] = dict(self.env.context)
         action["context"].pop("group_by", None)
         action["context"]["search_default_organization_ids"] = self.id

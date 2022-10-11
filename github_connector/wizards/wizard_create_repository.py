@@ -18,8 +18,7 @@ class WizardCreateRepository(models.TransientModel):
 
     def get_github_data_from_odoo(self):
         self.ensure_one()
-        res = super().get_github_data_from_odoo()
-        return res
+        return super().get_github_data_from_odoo()
 
     def button_create_in_github(self):
         self.ensure_one()
